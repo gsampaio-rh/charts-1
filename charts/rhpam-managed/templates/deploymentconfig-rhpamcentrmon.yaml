@@ -1,0 +1,166 @@
+{{- if .Values.enabled }}
+{{- if .Values.rhpam }}
+---
+apiVersion: v1
+kind: DeploymentConfig
+metadata:
+  annotations:
+    template.alpha.openshift.io/wait-for-ready: "true"
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote }}
+    service: {{ .Values.application_name }}-rhpamcentr
+  name: {{ .Values.application_name }}-rhpamcentr
+spec:
+  replicas: {{ .Values.rhpam.replicas }}
+  selector:
+    deploymentConfig: {{ .Values.application_name }}-rhpamcentr
+  strategy:
+    rollingParams:
+      maxSurge: 100%
+      maxUnavailable: 0
+    type: Rolling
+  template:
+    metadata:
+      labels:
+        application: {{ .Values.application_name }}
+        deploymentConfig: {{ .Values.application_name }}-rhpamcentr
+        service: {{ .Values.application_name }}-rhpamcentr
+      name: {{ .Values.application_name }}-rhpamcentr
+    spec:
+      containers:
+      - env:
+        - name: APPLICATION_USERS_PROPERTIES
+          value: /opt/kie/data/configuration/application-users.properties
+        - name: APPLICATION_ROLES_PROPERTIES
+          value: /opt/kie/data/configuration/application-roles.properties
+        - name: KIE_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              key: KIE_ADMIN_USER
+              name: {{ .Values.kie_server.credentials.secret }}
+        - name: KIE_ADMIN_PWD
+          valueFrom:
+            secretKeyRef:
+              key: KIE_ADMIN_PWD
+              name: {{ .Values.kie_server.credentials.secret }}
+        # - name: MAVEN_MIRROR_URL
+        #   value: {{ .Values.maven.mirror_url }}
+        - name: MAVEN_REPO_ID
+          value: {{ .Values.maven.repo_id }}
+        - name: MAVEN_REPO_URL
+          value: {{ .Values.maven.mirror_url }}
+        - name: MAVEN_REPO_USERNAME
+          value: {{ .Values.maven.external_repo.username }}
+        - name: MAVEN_REPO_PASSWORD
+          value: {{ .Values.maven.external_repo.password }}
+        - name: KIE_SERVER_CONTROLLER_OPENSHIFT_ENABLED
+          value: "true"
+        - name: KIE_SERVER_CONTROLLER_OPENSHIFT_GLOBAL_DISCOVERY_ENABLED
+          value: {{ .Values.kie_server.controller_openshift_global_discovery_enabled | quote }}
+        - name: KIE_SERVER_CONTROLLER_OPENSHIFT_PREFER_KIESERVER_SERVICE
+          value: {{ .Values.kie_server.controller_openshift_prefer_kieserver_service | quote }}
+        - name: KIE_SERVER_CONTROLLER_TEMPLATE_CACHE_TTL
+          value: {{ .Values.kie_server.controller_template_cache_ttl | quote }}
+        - name: HTTPS_KEYSTORE_DIR
+          value: /etc/businesscentral-secret-volume
+        - name: HTTPS_KEYSTORE
+          value: {{ .Values.business_central.https_keystore }}
+        - name: HTTPS_NAME
+          value: {{ .Values.business_central.certificate_name }}
+        - name: HTTPS_PASSWORD
+          value: {{ .Values.business_central.https_keystore_password }}
+        - name: JGROUPS_PING_PROTOCOL
+          value: openshift.DNS_PING
+        - name: OPENSHIFT_DNS_PING_SERVICE_NAME
+          value: {{ .Values.application_name }}-rhpamcentr-ping
+        - name: OPENSHIFT_DNS_PING_SERVICE_PORT
+          value: "8888"
+        {{- if .Values.sso}}
+        - name: SSO_URL
+          value: {{ .Values.sso.url }}
+        - name: SSO_OPENIDCONNECT_DEPLOYMENTS
+          value: ROOT.war
+        - name: SSO_REALM
+          value: {{ .Values.sso.realm }}
+        - name: SSO_SECRET
+          value: {{ .Values.business_central.sso.secret }}
+        - name: SSO_CLIENT
+          value: {{ .Values.business_central.sso.client }}
+        {{- if .Values.sso.username}}
+        - name: SSO_USERNAME
+          value: {{ .Values.sso.username }}
+        {{- end }}
+        {{- if .Values.sso.password}}
+        - name: SSO_PASSWORD
+          value: {{ .Values.sso.password }}
+        {{- end }}
+        - name: SSO_DISABLE_SSL_CERTIFICATE_VALIDATION
+          value: {{ .Values.sso.disable_ssl_certificate_validation | quote }}
+        - name: SSO_PRINCIPAL_ATTRIBUTE
+          value: {{ .Values.sso.principal_attribute }}
+        {{- end }}
+        image: {{ .Values.rhpam.image_stream.name }}
+        imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /rest/healthy
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 180
+          periodSeconds: 15
+          timeoutSeconds: 2
+        name: {{ .Values.application_name }}-rhpamcentr
+        ports:
+        - containerPort: 8778
+          name: jolokia
+          protocol: TCP
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        - containerPort: 8888
+          name: ping
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 36
+          httpGet:
+            path: /rest/ready
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 2
+        resources:
+          limits:
+            memory: {{ .Values.business_central.memory_limit }}
+        volumeMounts:
+        - mountPath: /etc/businesscentral-secret-volume
+          name: businesscentral-keystore-volume
+          readOnly: true
+        - mountPath: /opt/kie/data
+          name: {{ .Values.application_name }}-rhpamcentr-pvol
+      serviceAccountName: {{ .Values.application_name }}-rhpamsvc
+      terminationGracePeriodSeconds: 60
+      volumes:
+      - name: businesscentral-keystore-volume
+        secret:
+          secretName: {{ .Values.business_central.https_secret }}
+      - name: {{ .Values.application_name }}-rhpamcentr-pvol
+        persistentVolumeClaim:
+          claimName: {{ .Values.application_name }}-rhpamcentr-claim
+  triggers:
+  - imageChangeParams:
+      automatic: true
+      containerNames:
+      - {{ .Values.application_name }}-rhpamcentr
+      from:
+        kind: ImageStreamTag
+        name: {{ .Values.rhpam.image_stream.name }}:{{ .Values.rhpam.image_stream.tag }}
+        namespace: {{ .Values.rhpam.image_stream.namespace }}
+    type: ImageChange
+  - type: ConfigChange
+{{- end }}
+{{- end }}

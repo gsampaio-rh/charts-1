@@ -1,0 +1,5 @@
+description: Application template for a managed HA production runtime environment,
+  for Red Hat Process Automation Manager 7.9 - Deprecated
+name: rhpam79-managed
+tags: rhpam,processserver,jboss,prod
+version: v0.0.1

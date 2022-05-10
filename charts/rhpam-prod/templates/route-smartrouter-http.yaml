@@ -1,0 +1,23 @@
+{{- if .Values.enabled }}
+{{- if .Values.smart_router.expose }}
+---
+apiVersion: v1
+id: insecure-{{ .Values.application_name }}-smartrouter-http
+kind: Route
+metadata:
+  annotations:
+    description: Route for Smart Router's http service.
+    haproxy.router.openshift.io/timeout: 1h
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote }}
+    service: {{ .Values.application_name }}-smartrouter
+  name: insecure-{{ .Values.application_name }}-smartrouter
+spec:
+  host: {{ .Values.smart_router.hostname_http }}
+  port:
+    targetPort: http
+  to:
+    name: {{ .Values.application_name }}-smartrouter
+{{- end }}
+{{- end }}

@@ -1,0 +1,21 @@
+{{- if .Values.enabled }}
+{{- if .Values.rhsso }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    description: The web server's https port.
+    service.alpha.openshift.io/dependencies: '[{"name": "{{ .Values.application_name }}-postgresql", "kind": "Service"}]'
+    service.alpha.openshift.io/serving-cert-secret-name: sso-x509-https-secret
+  labels:
+    application: {{ .Values.application_name }}
+  name: {{ .Values.application_name }}
+spec:
+  ports:
+    - port: 8443
+      targetPort: 8443
+  selector:
+    deploymentConfig: {{ .Values.application_name }}
+{{- end }}
+{{- end }}

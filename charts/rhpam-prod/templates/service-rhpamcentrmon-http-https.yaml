@@ -1,0 +1,26 @@
+
+{{- if .Values.enabled }}
+{{- if .Values.rhpam }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    description: All the Business Central web server's ports.
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote }}
+    service: {{ .Values.application_name }}-rhpamcentrmon
+  name: {{ .Values.application_name }}-rhpamcentrmon
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+  - name: https
+    port: 8443
+    targetPort: 8443
+  selector:
+    deploymentConfig: {{ .Values.application_name }}-rhpamcentrmon
+{{- end }}
+{{- end }}

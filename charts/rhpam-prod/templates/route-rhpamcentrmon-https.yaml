@@ -1,0 +1,25 @@
+{{- if .Values.enabled }}
+{{- if .Values.business_central.expose }}
+---
+apiVersion: v1
+id: {{ .Values.application_name }}-rhpamcentrmon-https
+kind: Route
+metadata:
+  annotations:
+    description: Route for Business Central https service.
+    haproxy.router.openshift.io/timeout: 1h
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote }}
+    service: {{ .Values.application_name }}-rhpamcentrmon
+  name: {{ .Values.application_name }}-rhpamcentrmon
+spec:
+  host: {{ .Values.business_central.hostname_https }}
+  port:
+    targetPort: https
+  tls:
+    termination: passthrough
+  to:
+    name: {{ .Values.application_name }}-rhpamcentrmon
+{{- end }}
+{{- end }}   

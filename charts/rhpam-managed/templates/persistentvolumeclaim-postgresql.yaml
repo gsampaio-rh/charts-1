@@ -1,0 +1,19 @@
+{{- if .Values.enabled }}
+{{- if .Values.postgresql }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote }}
+    service: {{ .Values.application_name }}-postgresql
+  name: {{ .Values.application_name }}-postgresql-claim
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.postgresql.db_volume_capacity }}
+{{- end }}
+{{- end }}

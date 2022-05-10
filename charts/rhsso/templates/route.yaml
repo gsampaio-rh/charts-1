@@ -1,0 +1,19 @@
+{{- if .Values.enabled }}
+{{- if .Values.rhsso.expose }}
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  annotations:
+    description: Route for application's https service.
+  labels:
+    application: {{ .Values.application_name }}
+  name: {{ .Values.application_name }}
+spec:
+  tls:
+    termination: reencrypt
+  to:
+    kind: Service
+    name: {{ .Values.application_name }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,5 @@
+description: Application template for a non-HA persistent authoring environment, for
+  Red Hat Process Automation Manager 7.9 - Deprecated
+name: rhpam79-authoring
+tags: rhpam,processserver,jboss,authoring
+version: v0.0.1

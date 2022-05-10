@@ -1,0 +1,77 @@
+{{- if .Values.enabled }}
+{{- if .Values.postgresql }}
+---
+apiVersion: v1
+kind: DeploymentConfig
+metadata:
+  annotations:
+    template.alpha.openshift.io/wait-for-ready: "true"
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote }}
+    service: {{ .Values.application_name }}-postgresql
+  name: {{ .Values.application_name }}-postgresql
+spec:
+  replicas: 1
+  selector:
+    deploymentConfig: {{ .Values.application_name }}-postgresql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        application: {{ .Values.application_name }}
+        deploymentConfig: {{ .Values.application_name }}-postgresql
+        service: {{ .Values.application_name }}-postgresql
+      name: {{ .Values.application_name }}-postgresql
+    spec:
+      containers:
+      - env:
+        - name: POSTGRESQL_USER
+          value: {{ .Values.kie_server.postgresql_user }}
+        - name: POSTGRESQL_PASSWORD
+          value: {{ .Values.kie_server.postgresql_pwd }}
+        - name: POSTGRESQL_DATABASE
+          value: {{ .Values.kie_server.postgresql_db }}
+        - name: POSTGRESQL_MAX_PREPARED_TRANSACTIONS
+          value: {{ .Values.postgresql.max_prepared_transactions | quote }}
+        image: postgresql
+        imagePullPolicy: Always
+        livenessProbe:
+          exec:
+            command:
+            - /usr/libexec/check-container
+            - --live
+          initialDelaySeconds: 120
+          timeoutSeconds: 10
+        name: {{ .Values.application_name }}-postgresql
+        ports:
+        - containerPort: 5432
+          protocol: TCP
+        readinessProbe:
+          exec:
+            command:
+            - /usr/libexec/check-container
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+        volumeMounts:
+        - mountPath: /var/lib/pgsql/data
+          name: {{ .Values.application_name }}-postgresql-pvol
+      terminationGracePeriodSeconds: 60
+      volumes:
+      - name: {{ .Values.application_name }}-postgresql-pvol
+        persistentVolumeClaim:
+          claimName: {{ .Values.application_name }}-postgresql-claim
+  triggers:
+  - imageChangeParams:
+      automatic: true
+      containerNames:
+      - {{ .Values.application_name }}-postgresql
+      from:
+        kind: ImageStreamTag
+        name: postgresql:{{ .Values.postgresql.image_stream.tag }}
+        namespace: {{ .Values.postgresql.image_stream.namespace }}
+    type: ImageChange
+  - type: ConfigChange
+{{- end }}
+{{- end }}

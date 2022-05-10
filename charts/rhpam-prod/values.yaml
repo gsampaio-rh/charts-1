@@ -1,0 +1,147 @@
+---
+
+enabled: true
+
+application_name: rhpam
+
+rhpam:
+  image_stream:
+    install: false
+    tag: 7.9.0
+  version: "7.9"
+  
+    
+business_central:
+  replicas: 1
+  expose: true
+  hostname_http: ''
+  hostname_https: ''
+  https_keystore: keystore.jks
+  https_keystore_password: amllabs
+  certificate_name: jboss
+  https_secret: businesscentral-keystore-secret
+  resources:
+    cpu_limit: 1
+    memory_limit: 2Gi
+    cpu_request: 750m   
+    memory_request: 1.5Gi
+    storage_request: 64Mi
+  service: rhpam-rhpamcentr
+  image_stream:
+    name: rhpam-businesscentral-monitoring-rhel8
+    namespace: openshift
+  sso:
+    client: BUSINESS_CENTRAL_SSO
+    secret: 107785cd-7ce3-4ea7-95d5-99e0d2aa616f
+  # auth:
+  #   ldap_base_ctx_dn:
+  #   ldap_base_filter: 
+  #   ldap_bind_credential: 
+  #   ldap_bind_dn: 
+  #   ldap_default_role: 
+  #   ldap_distinguished_name_attribute: 
+  #   ldap_jaas_security_domain: 
+  #   ldap_parse_role_name_from_dn: 
+  #   ldap_parse_username: 
+  #   ldap_referral_user_attribute_id_to_check: 
+  #   ldap_role_attribute_id: 
+  #   ldap_role_attribute_is_dn: 
+  #   ldap_role_filter:
+  #   ldap_role_name_attribute_id: 
+  #   ldap_role_recursion: 
+  #   ldap_roles_ctx_dn: 
+  #   ldap_search_scope: 
+  #   ldap_search_time_limit: 
+  #   ldap_url: 
+  #   ldap_username_begin_string: 
+  #   ldap_username_end_string: 
+  #   role_mapper_replace_role: 
+  #   role_mapper_roles_properties: 
+
+kie_server:
+  replicas: 1
+  expose: true
+  mbeans: enabled
+  mgmt:
+    disabled: true
+  bypass_auth_user: false
+  # container_replicas: 1
+  # controller_openshift_global_discovery_enabled: false
+  # controller_openshift_prefer_kieserver_service: true
+  # controller_template_cache_ttl: 5000
+  # controller_token: '# TODO: must define a default value for .controller_token'
+  hostname_http: ''
+  hostname_https: ''
+  https_keystore: keystore.jks
+  certificate_name: jboss
+  https_keystore_password: amllabs
+  https_secret: kieserver-keystore-secret
+  image_stream:
+    name: rhpam-kieserver-rhel8
+    namespace: openshift
+  resources:
+    cpu_limit: 1
+    memory_limit: 6Gi
+    cpu_request: 750m
+    memory_request: 5.5Gi
+  mode: PRODUCTION
+  persistence_ds: java:/jboss/datasources/rhpam
+  postgresql_db: rhpam7
+  postgresql_dialect: org.hibernate.dialect.PostgreSQLDialect
+  postgresql_user: rhpam
+  postgresql_pwd: amllabs
+  sso:
+    client: KIE_SERVER_SSO
+    secret: 1d0172ea-2226-46fd-846c-1b3312e4486a
+  credentials:
+    secret: kie-server-secret
+    user: rhpam
+    password: amllabs
+  prometheus_server_ext_disabled: false
+  drools_server_filter_classes: true
+  timer_service_data_store_refresh_interval: 30000
+  router:
+    id: kie-server-router
+    name: KIE Server Router
+    protocol: 
+    https:
+      name: jboss
+      password: mykeystorepass
+  # startup_stategy: OpenShiftStartupStrategy
+
+smart_router:
+  replicas: 1
+  expose: true
+  hostname_http: ''
+  hostname_https: ''
+  image_stream:
+    name: rhpam-smartrouter-rhel8
+    namespace: openshift
+  resources:
+    memory_limit: 512Mi
+    storage_request: 64Mi
+  https_secret: smartrouter-keystore-secret
+  
+postgresql:
+  image_stream:
+    namespace: openshift
+    tag: "10"
+  max_prepared_transactions: "100"
+  db_volume_capacity: 1Gi
+
+maven:
+  mirror_of: "external:*,!repo-rhpamcentr"
+  mirror_url: https://nexus-labs-ci-cd.apps.aml.latam-1.rht-labs.com/repository/maven-public/
+  external_repo:
+    id: repo-custom
+    username: admin
+    password: admin123
+    url: http://nexus-labs-ci-cd.apps.aml.latam-1.rht-labs.com/repository/maven-releases
+  
+sso:
+  disable_ssl_certificate_validation: false
+  # username: sso
+  # password: sso
+  principal_attribute: preferred_username
+  realm: rhpam
+  url: https://rhsso-labs-dev.apps.aml.latam-1.rht-labs.com/auth/

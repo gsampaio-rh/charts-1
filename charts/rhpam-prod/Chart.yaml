@@ -1,0 +1,4 @@
+description: Application template for a managed HA production runtime environment, for Red Hat Process Automation Manager 7.9
+name: rhpam79-prod
+tags: rhpam,processserver,jboss,prod
+version: v0.0.1

@@ -1,0 +1,295 @@
+{{- if .Values.enabled }}
+{{- if .Values.kie_server }}
+---
+apiVersion: v1
+kind: DeploymentConfig
+metadata:
+  annotations:
+    template.alpha.openshift.io/wait-for-ready: "true"
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote}}
+    service: {{ .Values.application_name }}-kieserver
+    services.server.kie.org/kie-server-id: {{ .Values.application_name }}-kieserver
+  name: {{ .Values.application_name }}-kieserver
+spec:
+  replicas: {{ .Values.kie_server.replicas }}
+  revisionHistoryLimit: 10
+  selector:
+    deploymentConfig: {{ .Values.application_name }}-kieserver
+  strategy:
+    rollingParams:
+      maxSurge: 100%
+      maxUnavailable: 0
+    type: Rolling
+  template:
+    metadata:
+      labels:
+        application: {{ .Values.application_name }}
+        deploymentConfig: {{ .Values.application_name }}-kieserver
+        service: {{ .Values.application_name }}-kieserver
+        services.server.kie.org/kie-server-id: {{ .Values.application_name }}-kieserver
+      name: {{ .Values.application_name }}-kieserver
+    spec:
+      containers:
+      - env:
+        # - name: WORKBENCH_SERVICE_NAME
+        #   value: {{ .Values.application_name }}-rhpamcentr
+        - name: KIE_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              key: KIE_ADMIN_USER
+              name: {{ .Values.kie_server.credentials.secret }}
+        - name: KIE_ADMIN_PWD
+          valueFrom:
+            secretKeyRef:
+              key: KIE_ADMIN_PWD
+              name: {{ .Values.kie_server.credentials.secret }}
+        # {{- if .Values.kie_server.mgmt.disabled }}
+        # - name: KIE_SERVER_MGMT_DISABLED
+        #   value: {{ .Values.kie_server.mgmt.disabled }}
+        # {{- end }}
+        - name: KIE_SERVER_MODE
+          value: {{ .Values.kie_server.mode }}
+        - name: KIE_MBEANS
+          value: {{ .Values.kie_server.mbeans }}
+        - name: DROOLS_SERVER_FILTER_CLASSES
+          value: {{ .Values.kie_server.drools_server_filter_classes | quote }}
+        - name: PROMETHEUS_SERVER_EXT_DISABLED
+          value: {{ .Values.kie_server.prometheus_server_ext_disabled | quote }}
+        - name: KIE_SERVER_BYPASS_AUTH_USER
+          value: {{ .Values.kie_server.bypass_auth_user | quote }}
+        # - name: KIE_SERVER_CONTROLLER_TOKEN
+        #   value: {{ .Values.kie_server.controller_token }}
+        - name: KIE_SERVER_CONTROLLER_SERVICE
+          value: {{ .Values.application_name }}-rhpamcentrmon
+        - name: KIE_SERVER_CONTROLLER_PROTOCOL
+          value: ws
+        - name: KIE_SERVER_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['services.server.kie.org/kie-server-id']
+        - name: KIE_SERVER_ROUTE_NAME
+          value: {{ .Values.application_name }}-kieserver
+        # - name: KIE_SERVER_STARTUP_STRATEGY
+        #   value: {{ .Values.kie_server.startup_stategy }} 
+        - name: KIE_SERVER_USE_SECURE_ROUTE_NAME
+          value: 'false'
+        - name: KIE_SERVER_CONTAINER_DEPLOYMENT
+          value: ""
+        # - name: MAVEN_MIRROR_URL
+        #   value: {{ .Values.maven.mirror_url }}
+        - name: MAVEN_MIRROR_OF
+          value: {{ .Values.maven.mirror_of }}
+        - name: MAVEN_REPOS
+          value: RHPAMCENTR,EXTERNAL
+        - name: RHPAMCENTR_MAVEN_REPO_ID
+          value: repo-rhpamcentr
+        # - name: RHPAMCENTR_MAVEN_REPO_SERVICE
+        #   value: {{ .Values.business_central.service }}
+        - name: RHPAMCENTR_MAVEN_REPO_PATH
+          value: /maven2/
+        - name: EXTERNAL_MAVEN_REPO_ID
+          value: {{ .Values.maven.external_repo.id }}
+        - name: EXTERNAL_MAVEN_REPO_URL
+          value: {{ .Values.maven.external_repo.url }}
+        - name: EXTERNAL_MAVEN_REPO_USERNAME
+          value: {{ .Values.maven.external_repo.username }}
+        - name: EXTERNAL_MAVEN_REPO_PASSWORD
+          value: {{ .Values.maven.external_repo.password }}
+        - name: KIE_SERVER_ROUTER_SERVICE
+          value: {{ .Values.application_name }}-smartrouter
+        - name: KIE_SERVER_ROUTER_PORT
+          value: "9000"
+        # - name: KIE_SERVER_ROUTER_PROTOCOL
+        #   value: {{ .Values.kie_server.router_protocol }}
+        - name: KIE_SERVER_PERSISTENCE_DS
+          value: {{ .Values.kie_server.persistence_ds }}
+        - name: DATASOURCES
+          value: RHPAM
+        - name: RHPAM_JNDI
+          value: {{ .Values.kie_server.persistence_ds }}
+        - name: RHPAM_JTA
+          value: "true"
+        - name: RHPAM_DATABASE
+          value: {{ .Values.kie_server.postgresql_db }}
+        - name: RHPAM_DRIVER
+          value: postgresql
+        - name: KIE_SERVER_PERSISTENCE_DIALECT
+          value: {{ .Values.kie_server.postgresql_dialect }}
+        - name: RHPAM_USERNAME
+          value: {{ .Values.kie_server.postgresql_user }}
+        - name: RHPAM_PASSWORD
+          value: {{ .Values.kie_server.postgresql_pwd }}
+        - name: RHPAM_SERVICE_HOST
+          value: {{ .Values.application_name }}-postgresql
+        - name: RHPAM_SERVICE_PORT
+          value: "5432"
+        - name: TIMER_SERVICE_DATA_STORE_REFRESH_INTERVAL
+          value: {{ .Values.kie_server.timer_service_data_store_refresh_interval | quote }}
+        - name: HTTPS_KEYSTORE_DIR
+          value: /etc/kieserver-secret-volume
+        - name: HTTPS_KEYSTORE
+          value: {{ .Values.kie_server.https_keystore }}
+        - name: HTTPS_NAME
+          value: {{ .Values.kie_server.certificate_name }}
+        - name: HTTPS_PASSWORD
+          value: {{ .Values.kie_server.https_keystore_password }}
+        - name: JGROUPS_PING_PROTOCOL
+          value: openshift.DNS_PING
+        - name: OPENSHIFT_DNS_PING_SERVICE_NAME
+          value: {{ .Values.application_name }}-kieserver-ping
+        - name: OPENSHIFT_DNS_PING_SERVICE_PORT
+          value: "8888"
+          {{- if .Values.sso}}
+        - name: SSO_URL
+          value: {{ .Values.sso.url }}
+        - name: SSO_OPENIDCONNECT_DEPLOYMENTS
+          value: ROOT.war
+        - name: SSO_REALM
+          value: {{ .Values.sso.realm }}
+        - name: SSO_SECRET
+          value: {{ .Values.kie_server.sso.secret }}
+        - name: SSO_CLIENT
+          value: {{ .Values.kie_server.sso.client }}
+        {{- if .Values.sso.username}}
+        - name: SSO_USERNAME
+          value: {{ .Values.sso.username }}
+        {{- end }}
+        {{- if .Values.sso.password}}
+        - name: SSO_PASSWORD
+          value: {{ .Values.sso.password }}
+        {{- end }}
+        - name: SSO_DISABLE_SSL_CERTIFICATE_VALIDATION
+          value: {{ .Values.sso.disable_ssl_certificate_validation | quote }}
+        - name: SSO_PRINCIPAL_ATTRIBUTE
+          value: {{ .Values.sso.principal_attribute }}
+        {{- end }}
+        - name: HOSTNAME_HTTP
+          value: {{ .Values.kie_server.hostname_http }}
+        - name: HOSTNAME_HTTPS
+          value: {{ .Values.kie_server.hostname_https }}
+        {{- if .Values.business_central.ldap}}
+        - name: AUTH_LDAP_URL
+          value: {{ .Values.auth_ldap_url }}
+        - name: AUTH_LDAP_BIND_DN
+          value: {{ .Values.auth_ldap_bind_dn }}
+        - name: AUTH_LDAP_BIND_CREDENTIAL
+          value: {{ .Values.auth_ldap_bind_credential }}
+        - name: AUTH_LDAP_JAAS_SECURITY_DOMAIN
+          value: {{ .Values.auth_ldap_jaas_security_domain }}
+        - name: AUTH_LDAP_BASE_CTX_DN
+          value: {{ .Values.auth_ldap_base_ctx_dn }}
+        - name: AUTH_LDAP_BASE_FILTER
+          value: {{ .Values.auth_ldap_base_filter }}
+        - name: AUTH_LDAP_SEARCH_SCOPE
+          value: {{ .Values.auth_ldap_search_scope }}
+        - name: AUTH_LDAP_SEARCH_TIME_LIMIT
+          value: {{ .Values.auth_ldap_search_time_limit }}
+        - name: AUTH_LDAP_DISTINGUISHED_NAME_ATTRIBUTE
+          value: {{ .Values.auth_ldap_distinguished_name_attribute }}
+        - name: AUTH_LDAP_PARSE_USERNAME
+          value: {{ .Values.auth_ldap_parse_username }}
+        - name: AUTH_LDAP_USERNAME_BEGIN_STRING
+          value: {{ .Values.auth_ldap_username_begin_string }}
+        - name: AUTH_LDAP_USERNAME_END_STRING
+          value: {{ .Values.auth_ldap_username_end_string }}
+        - name: AUTH_LDAP_ROLE_ATTRIBUTE_ID
+          value: {{ .Values.auth_ldap_role_attribute_id }}
+        - name: AUTH_LDAP_ROLES_CTX_DN
+          value: {{ .Values.auth_ldap_roles_ctx_dn }}
+        - name: AUTH_LDAP_ROLE_FILTER
+          value: {{ .Values.auth_ldap_role_filter }}
+        - name: AUTH_LDAP_ROLE_RECURSION
+          value: {{ .Values.auth_ldap_role_recursion }}
+        - name: AUTH_LDAP_DEFAULT_ROLE
+          value: {{ .Values.auth_ldap_default_role }}
+        - name: AUTH_LDAP_ROLE_NAME_ATTRIBUTE_ID
+          value: {{ .Values.auth_ldap_role_name_attribute_id }}
+        - name: AUTH_LDAP_PARSE_ROLE_NAME_FROM_DN
+          value: {{ .Values.auth_ldap_parse_role_name_from_dn }}
+        - name: AUTH_LDAP_ROLE_ATTRIBUTE_IS_DN
+          value: {{ .Values.auth_ldap_role_attribute_is_dn }}
+        - name: AUTH_LDAP_REFERRAL_USER_ATTRIBUTE_ID_TO_CHECK
+          value: {{ .Values.auth_ldap_referral_user_attribute_id_to_check }}
+        - name: AUTH_ROLE_MAPPER_ROLES_PROPERTIES
+          value: {{ .Values.auth_role_mapper_roles_properties }}
+        - name: AUTH_ROLE_MAPPER_REPLACE_ROLE
+          value: {{ .Values.auth_role_mapper_replace_role }}
+        {{- end }}
+        image: {{ .Values.kie_server.image_stream_name }}
+        imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /services/rest/server/healthcheck
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 180
+          periodSeconds: 15
+          timeoutSeconds: 2
+        name: {{ .Values.application_name }}-kieserver
+        ports:
+        - containerPort: 8778
+          name: jolokia
+          protocol: TCP
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        - containerPort: 8888
+          name: ping
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 36
+          httpGet:
+            path: /services/rest/server/readycheck
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 2
+        resources:
+          limits:
+            cpu: {{ .Values.kie_server.resources.cpu_limit }}
+            memory: {{ .Values.kie_server.resources.memory_limit }}
+          requests:
+            cpu: {{ .Values.kie_server.resources.cpu_request }}
+            memory: {{ .Values.kie_server.resources.memory_request }}
+        volumeMounts:
+        - mountPath: /etc/kieserver-secret-volume
+          name: kieserver-keystore-volume
+          readOnly: true
+      initContainers:
+      - command:
+        - /bin/bash
+        - -c
+        - replicas=$(oc get dc {{ .Values.application_name }}-postgresql -o=jsonpath='{.status.availableReplicas}');
+          until "[" $replicas -gt 0 "]"; do echo waiting for {{ .Values.application_name }}-postgresql;
+          replicas=$(oc get dc {{ .Values.application_name }}-postgresql -o=jsonpath='{.status.availableReplicas}');
+          sleep 2; done;
+        image: registry.redhat.io/openshift3/ose-cli
+        imagePullPolicy: IfNotPresent
+        name: {{ .Values.application_name }}-postgresql-init
+        terminationMessagePolicy: FallbackToLogsOnError
+      serviceAccountName: {{ .Values.application_name }}-kieserver
+      terminationGracePeriodSeconds: 60
+      volumes:
+      - name: kieserver-keystore-volume
+        secret:
+          secretName: {{ .Values.kie_server.https_secret }}
+  triggers:
+  - imageChangeParams:
+      automatic: true
+      containerNames:
+      - {{ .Values.application_name }}-kieserver
+      from:
+        kind: ImageStreamTag
+        name: {{ .Values.kie_server.image_stream.name }}:{{ .Values.rhpam.image_stream.tag }}
+        namespace: {{ .Values.kie_server.image_stream.namespace }}
+    type: ImageChange
+  - type: ConfigChange
+{{- end }}
+{{- end }}

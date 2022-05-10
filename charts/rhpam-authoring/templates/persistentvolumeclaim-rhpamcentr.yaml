@@ -1,0 +1,21 @@
+{{- if .Values.enabled }}
+{{- if .Values.business_central }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote }}
+    service: {{ .Values.application_name }}-rhpamcentr
+  name: {{ .Values.application_name }}-rhpamcentr-claim
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.business_central.resources.storage_request }}
+{{- end }}
+{{- end }}
+
+

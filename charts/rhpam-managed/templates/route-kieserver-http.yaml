@@ -1,0 +1,23 @@
+{{- if .Values.enabled }}
+{{- if .Values.kie_server.expose }}
+---
+apiVersion: v1
+id: insecure-{{ .Values.application_name }}-kieserver-http
+kind: Route
+metadata:
+  annotations:
+    description: Route for First KIE server's http service.
+    haproxy.router.openshift.io/balance: source
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote }}
+    service: {{ .Values.application_name }}-kieserver
+  name: insecure-{{ .Values.application_name }}-kieserver
+spec:
+  host: {{ .Values.kie_server.hostname_http }}
+  port:
+    targetPort: http
+  to:
+    name: {{ .Values.application_name }}-kieserver
+{{- end }}
+{{- end }}

@@ -1,0 +1,80 @@
+{{- if .Values.enabled }}
+{{- if .Values.postgresql }}
+---
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  labels:
+    app.kubernetes.io/part-of: {{ .Values.application_name }}
+    application: {{ .Values.application_name }}
+  name: {{ .Values.application_name }}-postgresql
+spec:
+  replicas: {{ .Values.postgresql.replicas }}
+  selector:
+    deploymentConfig: {{ .Values.application_name }}-postgresql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        application: {{ .Values.application_name }}
+        deploymentConfig: {{ .Values.application_name }}-postgresql
+      name: {{ .Values.application_name }}-postgresql
+    spec:
+      containers:
+        - env:
+            - name: POSTGRESQL_USER
+              value: {{ .Values.postgresql.user | quote }}
+            - name: POSTGRESQL_PASSWORD
+              value: {{ .Values.postgresql.pass | quote }}
+            - name: POSTGRESQL_DATABASE
+              value: {{ .Values.postgresql.name | quote }}
+            #TODO: These variables are empty. WHY ARE THEY HERE?????
+            - name: POSTGRESQL_MAX_CONNECTIONS
+            - name: POSTGRESQL_MAX_PREPARED_TRANSACTIONS
+            - name: POSTGRESQL_SHARED_BUFFERS
+          image: postgresql
+          imagePullPolicy: Always
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 90
+            tcpSocket:
+              port: 5432
+            timeoutSeconds: 10
+          name: {{ .Values.application_name }}-postgresql
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - '-i'
+                - '-c'
+                - >-
+                  psql -h 127.0.0.1 -U $POSTGRESQL_USER -q -d
+                  $POSTGRESQL_DATABASE -c 'SELECT 1'
+            failureThreshold: 3
+            initialDelaySeconds: 90
+            timeoutSeconds: 10
+          volumeMounts:
+            - mountPath: /var/lib/pgsql/data
+              name: {{ .Values.application_name }}-postgresql-pvol
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - name: {{ .Values.application_name }}-postgresql-pvol
+          persistentVolumeClaim:
+            claimName: {{ .Values.application_name }}-postgresql-claim
+  triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - {{ .Values.application_name }}-postgresql
+        from:
+          kind: ImageStreamTag
+          name: '{{ .Values.postgresql.imagestream.name }}:{{ .Values.postgresql.imagestream.tag }}'
+          namespace: {{ .Values.postgresql.imagestream.namespace }}
+      type: ImageChange
+    - type: ConfigChange
+{{- end }}
+{{- end }}

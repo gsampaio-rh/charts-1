@@ -1,0 +1,116 @@
+{{- if .Values.enabled }}
+{{- if .Values.kie_server }}
+---
+apiVersion: v1
+kind: DeploymentConfig
+metadata:
+  annotations:
+    template.alpha.openshift.io/wait-for-ready: "true"
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote }}
+    service: {{ .Values.application_name }}-smartrouter
+  name: {{ .Values.application_name }}-smartrouter
+spec:
+  replicas: {{ .Values.smart_router.replicas }}
+  selector:
+    deploymentConfig: {{ .Values.application_name }}-smartrouter
+  strategy:
+    rollingParams:
+      maxSurge: 100%
+      maxUnavailable: 0
+    type: Rolling
+  template:
+    metadata:
+      labels:
+        application: {{ .Values.application_name }}
+        deploymentConfig: {{ .Values.application_name }}-smartrouter
+        service: {{ .Values.application_name }}-smartrouter
+      name: {{ .Values.application_name }}-smartrouter
+    spec:
+      containers:
+      - env:
+        - name: KIE_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              key: KIE_ADMIN_USER
+              name: {{ .Values.kie_server.credentials.secret }}
+        - name: KIE_ADMIN_PWD
+          valueFrom:
+            secretKeyRef:
+              key: KIE_ADMIN_PWD
+              name: {{ .Values.kie_server.credentials.secret }}
+        - name: KIE_SERVER_ROUTER_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: KIE_SERVER_ROUTER_PORT
+          value: "9000"
+        - name: KIE_SERVER_ROUTER_PORT_TLS
+          value: "9443"
+        # - name: KIE_SERVER_ROUTER_URL_EXTERNAL
+        #   value: {{ .Values.kie_server_router_url_external }}
+        - name: KIE_SERVER_ROUTER_ID
+          value: {{ .Values.kie_server.router.id }}
+        - name: KIE_SERVER_ROUTER_NAME
+          value: {{ .Values.kie_server.router.name }}
+        - name: KIE_SERVER_ROUTER_ROUTE_NAME
+          value: {{ .Values.application_name }}-smartrouter
+        - name: KIE_SERVER_ROUTER_SERVICE
+          value: {{ .Values.application_name }}-smartrouter
+        # - name: KIE_SERVER_ROUTER_PROTOCOL
+        #   value: {{ .Values.kie_server.router.protocol }}
+        - name: KIE_SERVER_ROUTER_TLS_KEYSTORE_KEYALIAS
+          value: {{ .Values.kie_server.router.https.name }}
+        - name: KIE_SERVER_ROUTER_TLS_KEYSTORE_PASSWORD
+          value: {{ .Values.kie_server.router.https.password }}
+        - name: KIE_SERVER_ROUTER_TLS_KEYSTORE
+          value: /etc/smartrouter-secret-volume/{{ .Values.kie_server.router_https_keystore }}
+        # - name: KIE_SERVER_CONTROLLER_TOKEN
+        #   value: {{ .Values.kie_server.controller_token }}
+        - name: KIE_SERVER_CONTROLLER_SERVICE
+          value: {{ .Values.application_name }}-rhpamcentrmon
+        - name: KIE_SERVER_CONTROLLER_PROTOCOL
+          value: http
+        - name: KIE_SERVER_ROUTER_REPO
+          value: /opt/rhpam-smartrouter/data
+        - name: KIE_SERVER_ROUTER_CONFIG_WATCHER_ENABLED
+          value: "true"
+        image: {{ .Values.smart_router.image_stream.name }}
+        imagePullPolicy: Always
+        name: {{ .Values.application_name }}-smartrouter
+        ports:
+        - containerPort: 9000
+          name: http
+          protocol: TCP
+        resources:
+          limits:
+            memory: {{ .Values.smart_router.resources.memory_limit }}
+        volumeMounts:
+        - mountPath: /opt/rhpam-smartrouter/data
+          name: {{ .Values.application_name }}-smartrouter
+        - mountPath: /etc/smartrouter-secret-volume
+          name: smartrouter-keystore-volume
+          readOnly: true
+      serviceAccountName: {{ .Values.application_name }}-smartrouter
+      terminationGracePeriodSeconds: 60
+      volumes:
+      - name: {{ .Values.application_name }}-smartrouter
+        persistentVolumeClaim:
+          claimName: {{ .Values.application_name }}-smartrouter-claim
+      - name: smartrouter-keystore-volume
+        secret:
+          secretName: {{ .Values.smart_router.https_secret }}
+  triggers:
+  - imageChangeParams:
+      automatic: true
+      containerNames:
+      - {{ .Values.application_name }}-smartrouter
+      from:
+        kind: ImageStreamTag
+        name: {{ .Values.smart_router.image_stream.name }}:{{ .Values.rhpam.image_stream.tag }}
+        namespace: {{ .Values.smart_router.image_stream.namespace }}
+    type: ImageChange
+  - type: ConfigChange
+{{- end }}
+{{- end }}

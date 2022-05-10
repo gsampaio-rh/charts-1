@@ -1,0 +1,24 @@
+{{- if .Values.enabled }}
+{{- if .Values.rhpam }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    description: The JGroups ping port for clustering.
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote }}
+    service: {{ .Values.application_name }}-rhpamcentrmon
+  name: {{ .Values.application_name }}-rhpamcentrmon-ping
+spec:
+  clusterIP: None
+  ports:
+  - name: ping
+    port: 8888
+    targetPort: 8888
+  selector:
+    deploymentConfig: {{ .Values.application_name }}-rhpamcentrmon
+{{- end }}
+{{- end }}    

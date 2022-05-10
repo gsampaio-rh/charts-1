@@ -1,0 +1,216 @@
+{{- if .Values.enabled }}
+{{- if .Values.rhpam }}
+---
+apiVersion: v1
+kind: DeploymentConfig
+metadata:
+  annotations:
+    template.alpha.openshift.io/wait-for-ready: "true"
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote }}
+    service: {{ .Values.application_name }}-rhpamcentrmon
+  name: {{ .Values.application_name }}-rhpamcentrmon
+spec:
+  replicas: {{ .Values.business_central.replicas }}
+  selector:
+    deploymentConfig: {{ .Values.application_name }}-rhpamcentrmon
+  strategy:
+    rollingParams:
+      maxSurge: 100%
+      maxUnavailable: 0
+    type: Rolling
+  template:
+    metadata:
+      labels:
+        application: {{ .Values.application_name }}
+        deploymentConfig: {{ .Values.application_name }}-rhpamcentrmon
+        service: {{ .Values.application_name }}-rhpamcentrmon
+      name: {{ .Values.application_name }}-rhpamcentrmon
+    spec:
+      containers:
+      - env:
+        - name: APPLICATION_USERS_PROPERTIES
+          value: /opt/kie/data/configuration/application-users.properties
+        - name: APPLICATION_ROLES_PROPERTIES
+          value: /opt/kie/data/configuration/application-roles.properties
+        - name: KIE_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              key: KIE_ADMIN_USER
+              name: {{ .Values.kie_server.credentials.secret }}
+        - name: KIE_ADMIN_PWD
+          valueFrom:
+            secretKeyRef:
+              key: KIE_ADMIN_PWD
+              name: {{ .Values.kie_server.credentials.secret }}
+        # - name: MAVEN_MIRROR_URL
+        #   value: {{ .Values.maven.mirror_url }}
+        - name: MAVEN_REPO_ID
+          value: {{ .Values.maven.repo_id }}
+        - name: MAVEN_REPO_URL
+          value: {{ .Values.maven.mirror_url }}
+        - name: MAVEN_REPO_USERNAME
+          value: {{ .Values.maven.external_repo.username }}
+        - name: MAVEN_REPO_PASSWORD
+          value: {{ .Values.maven.external_repo.password }}
+        # - name: KIE_SERVER_CONTROLLER_TOKEN
+        #   value: {{ .Values.kie_server.controller_token }}
+        - name: HTTPS_KEYSTORE_DIR
+          value: /etc/businesscentral-secret-volume
+        - name: HTTPS_KEYSTORE
+          value: {{ .Values.business_central.https_keystore }}
+        - name: HTTPS_NAME
+          value: {{ .Values.business_central.certificate_name }}
+        - name: HTTPS_PASSWORD
+          value: {{ .Values.business_central.https_keystore_password }}
+        - name: JGROUPS_PING_PROTOCOL
+          value: openshift.DNS_PING
+        - name: OPENSHIFT_DNS_PING_SERVICE_NAME
+          value: {{ .Values.application_name }}-rhpamcentrmon-ping
+        - name: OPENSHIFT_DNS_PING_SERVICE_PORT
+          value: "8888" 
+        {{- if .Values.sso}}
+        - name: SSO_URL
+          value: {{ .Values.sso.url }}
+        - name: SSO_OPENIDCONNECT_DEPLOYMENTS
+          value: ROOT.war
+        - name: SSO_REALM
+          value: {{ .Values.sso.realm }}
+        - name: SSO_SECRET
+          value: {{ .Values.business_central.sso.secret }}
+        - name: SSO_CLIENT
+          value: {{ .Values.business_central.sso.client }}
+        {{- if .Values.sso.username}}
+        - name: SSO_USERNAME
+          value: {{ .Values.sso.username }}
+        {{- end }}
+        {{- if .Values.sso.password}}
+        - name: SSO_PASSWORD
+          value: {{ .Values.sso.password }}
+        {{- end }}
+        - name: SSO_DISABLE_SSL_CERTIFICATE_VALIDATION
+          value: {{ .Values.sso.disable_ssl_certificate_validation | quote }}
+        - name: SSO_PRINCIPAL_ATTRIBUTE
+          value: {{ .Values.sso.principal_attribute }}
+        {{- end }}
+        - name: HOSTNAME_HTTP
+          value: {{ .Values.business_central.hostname_http }}
+        - name: HOSTNAME_HTTPS
+          value: {{ .Values.business_central.hostname_https }}
+        {{- if .Values.business_central.ldap}}
+        - name: AUTH_LDAP_URL
+          value: {{ .Values.auth_ldap_url }}
+        - name: AUTH_LDAP_BIND_DN
+          value: {{ .Values.auth_ldap_bind_dn }}
+        - name: AUTH_LDAP_BIND_CREDENTIAL
+          value: {{ .Values.auth_ldap_bind_credential }}
+        - name: AUTH_LDAP_JAAS_SECURITY_DOMAIN
+          value: {{ .Values.auth_ldap_jaas_security_domain }}
+        - name: AUTH_LDAP_BASE_CTX_DN
+          value: {{ .Values.auth_ldap_base_ctx_dn }}
+        - name: AUTH_LDAP_BASE_FILTER
+          value: {{ .Values.auth_ldap_base_filter }}
+        - name: AUTH_LDAP_SEARCH_SCOPE
+          value: {{ .Values.auth_ldap_search_scope }}
+        - name: AUTH_LDAP_SEARCH_TIME_LIMIT
+          value: {{ .Values.auth_ldap_search_time_limit }}
+        - name: AUTH_LDAP_DISTINGUISHED_NAME_ATTRIBUTE
+          value: {{ .Values.auth_ldap_distinguished_name_attribute }}
+        - name: AUTH_LDAP_PARSE_USERNAME
+          value: {{ .Values.auth_ldap_parse_username }}
+        - name: AUTH_LDAP_USERNAME_BEGIN_STRING
+          value: {{ .Values.auth_ldap_username_begin_string }}
+        - name: AUTH_LDAP_USERNAME_END_STRING
+          value: {{ .Values.auth_ldap_username_end_string }}
+        - name: AUTH_LDAP_ROLE_ATTRIBUTE_ID
+          value: {{ .Values.auth_ldap_role_attribute_id }}
+        - name: AUTH_LDAP_ROLES_CTX_DN
+          value: {{ .Values.auth_ldap_roles_ctx_dn }}
+        - name: AUTH_LDAP_ROLE_FILTER
+          value: {{ .Values.auth_ldap_role_filter }}
+        - name: AUTH_LDAP_ROLE_RECURSION
+          value: {{ .Values.auth_ldap_role_recursion }}
+        - name: AUTH_LDAP_DEFAULT_ROLE
+          value: {{ .Values.auth_ldap_default_role }}
+        - name: AUTH_LDAP_ROLE_NAME_ATTRIBUTE_ID
+          value: {{ .Values.auth_ldap_role_name_attribute_id }}
+        - name: AUTH_LDAP_PARSE_ROLE_NAME_FROM_DN
+          value: {{ .Values.auth_ldap_parse_role_name_from_dn }}
+        - name: AUTH_LDAP_ROLE_ATTRIBUTE_IS_DN
+          value: {{ .Values.auth_ldap_role_attribute_is_dn }}
+        - name: AUTH_LDAP_REFERRAL_USER_ATTRIBUTE_ID_TO_CHECK
+          value: {{ .Values.auth_ldap_referral_user_attribute_id_to_check }}
+        - name: AUTH_ROLE_MAPPER_ROLES_PROPERTIES
+          value: {{ .Values.auth_role_mapper_roles_properties }}
+        - name: AUTH_ROLE_MAPPER_REPLACE_ROLE
+          value: {{ .Values.auth_role_mapper_replace_role }}
+        {{- end }}
+        image: {{ .Values.business_central.image_stream.name }}
+        imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 36
+          httpGet:
+            path: /rest/healthy
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 180
+          periodSeconds: 15
+          timeoutSeconds: 2
+        name: {{ .Values.application_name }}-rhpamcentrmon
+        ports:
+        - containerPort: 8778
+          name: jolokia
+          protocol: TCP
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        - containerPort: 8888
+          name: ping
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 36
+          httpGet:
+            path: /rest/ready
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 5
+          timeoutSeconds: 2
+        resources:
+          limits:
+            cpu: {{ .Values.business_central.resources.cpu_limit }}
+            memory: {{ .Values.business_central.resources.memory_limit }}
+          requests:
+            cpu: {{ .Values.business_central.resources.cpu_request }}
+            memory: {{ .Values.business_central.resources.memory_request }}
+        volumeMounts:
+        - mountPath: /etc/businesscentral-secret-volume
+          name: businesscentral-keystore-volume
+          readOnly: true
+        - mountPath: /opt/kie/data
+          name: {{ .Values.application_name }}-rhpamcentrmon-pvol
+      terminationGracePeriodSeconds: 60
+      volumes:
+      - name: businesscentral-keystore-volume
+        secret:
+          secretName: {{ .Values.business_central.https_secret }}
+      - name: {{ .Values.application_name }}-rhpamcentrmon-pvol
+        persistentVolumeClaim:
+          claimName: {{ .Values.application_name }}-rhpamcentrmon-claim
+  triggers:
+  - imageChangeParams:
+      automatic: true
+      containerNames:
+      - {{ .Values.application_name }}-rhpamcentrmon
+      from:
+        kind: ImageStreamTag
+        name: {{ .Values.business_central.image_stream.name }}:{{ .Values.rhpam.image_stream.tag }}
+        namespace: {{ .Values.business_central.image_stream.namespace }}
+    type: ImageChange
+  - type: ConfigChange
+{{- end }}
+{{- end }}

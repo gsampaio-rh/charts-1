@@ -1,0 +1,25 @@
+{{- if .Values.enabled }}
+{{- if .Values.smart_router }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    description: The smart router server http and https ports.
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote }}
+    service: {{ .Values.application_name }}-smartrouter
+  name: {{ .Values.application_name }}-smartrouter
+spec:
+  ports:
+  - name: http
+    port: 9000
+    targetPort: 9000
+  - name: https
+    port: 9443
+    targetPort: 9443
+  selector:
+    deploymentConfig: {{ .Values.application_name }}-smartrouter
+{{- end }}
+{{- end }}    

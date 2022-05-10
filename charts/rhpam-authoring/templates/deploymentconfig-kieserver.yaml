@@ -1,0 +1,236 @@
+{{- if .Values.enabled }}
+{{- if .Values.kie_server }}
+---
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  annotations:
+    template.alpha.openshift.io/wait-for-ready: "true"
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote}}
+    service: {{ .Values.application_name }}-kieserver
+    services.server.kie.org/kie-server-id: {{ .Values.application_name }}-kieserver
+  name: {{ .Values.application_name }}-kieserver
+spec:
+  replicas: {{ .Values.kie_server.replicas }}
+  revisionHistoryLimit: 10
+  selector:
+    deploymentConfig: {{ .Values.application_name }}-kieserver
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        application: {{ .Values.application_name }}
+        deploymentConfig: {{ .Values.application_name }}-kieserver
+        service: {{ .Values.application_name }}-kieserver
+        services.server.kie.org/kie-server-id: {{ .Values.application_name }}-kieserver
+      name: {{ .Values.application_name }}-kieserver
+    spec:
+      containers:
+      - env:
+        - name: WORKBENCH_SERVICE_NAME
+          value: {{ .Values.application_name }}-rhpamcentr
+        - name: DATASOURCES
+          value: RHPAM
+        - name: RHPAM_DATABASE
+          value: rhpam7
+        - name: RHPAM_JNDI
+          value: {{ .Values.kie_server.persistence_ds }}
+        - name: RHPAM_JTA
+          value: "true"
+        - name: RHPAM_DRIVER
+          value: h2
+        - name: RHPAM_USERNAME
+          value: {{ .Values.h2.user }}
+        - name: RHPAM_PASSWORD
+          value: {{ .Values.h2.pwd }}
+        - name: RHPAM_NONXA
+          value: "false"
+        - name: RHPAM_XA_CONNECTION_PROPERTY_URL
+          value: jdbc:h2:/opt/kie/data/h2/rhpam;AUTO_SERVER=TRUE
+        - name: KIE_SERVER_PERSISTENCE_DIALECT
+          value: org.hibernate.dialect.H2Dialect  
+        - name: KIE_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              key: KIE_ADMIN_USER
+              name: {{ .Values.kie_server.credentials.secret }}
+        - name: KIE_ADMIN_PWD
+          valueFrom:
+            secretKeyRef:
+              key: KIE_ADMIN_PWD
+              name: {{ .Values.kie_server.credentials.secret }}
+        - name: KIE_SERVER_MODE
+          value: {{ .Values.kie_server.mode }}
+        - name: KIE_MBEANS
+          value: {{ .Values.kie_server.mbeans }}
+        - name: DROOLS_SERVER_FILTER_CLASSES
+          value: {{ .Values.kie_server.drools_server_filter_classes | quote }}
+        - name: PROMETHEUS_SERVER_EXT_DISABLED
+          value: {{ .Values.kie_server.prometheus_server_ext_disabled | quote }}
+        - name: KIE_SERVER_BYPASS_AUTH_USER
+          value: {{ .Values.kie_server.bypass_auth_user | quote }}
+        - name: KIE_SERVER_CONTROLLER_SERVICE
+          value: {{ .Values.application_name }}-rhpamcentr
+        - name: KIE_SERVER_CONTROLLER_PROTOCOL
+          value: ws
+        - name: KIE_SERVER_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['services.server.kie.org/kie-server-id']
+        - name: KIE_SERVER_ROUTE_NAME
+          value: insecure-{{ .Values.application_name }}-kieserver
+        - name: KIE_SERVER_PERSISTENCE_DS
+          value: {{ .Values.kie_server.persistence_ds }}
+        - name: KIE_SERVER_STARTUP_STRATEGY
+          value: {{ .Values.kie_server.startup_stategy }}
+        # - name: MAVEN_MIRROR_URL
+        #   value: {{ .Values.maven.mirror_url }}
+        - name: MAVEN_MIRROR_OF
+          value: {{ .Values.maven.mirror_of }}
+        - name: MAVEN_REPOS
+          value: RHPAMCENTR,EXTERNAL
+        - name: RHPAMCENTR_MAVEN_REPO_ID
+          value: repo-rhpamcentr
+        - name: RHPAMCENTR_MAVEN_REPO_SERVICE
+          value: {{ .Values.application_name }}-rhpamcentr
+        - name: RHPAMCENTR_MAVEN_REPO_PATH
+          value: /maven2/
+        - name: RHPAMCENTR_MAVEN_REPO_USERNAME
+          valueFrom:
+            secretKeyRef:
+              key: KIE_ADMIN_USER
+              name: {{ .Values.kie_server.credentials.secret }}
+        - name: RHPAMCENTR_MAVEN_REPO_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: KIE_ADMIN_PWD
+              name: {{ .Values.kie_server.credentials.secret }}
+        - name: EXTERNAL_MAVEN_REPO_ID
+          value: {{ .Values.maven.external_repo.id }}
+        - name: EXTERNAL_MAVEN_REPO_URL
+          value: {{ .Values.maven.external_repo.url }}
+        - name: EXTERNAL_MAVEN_REPO_USERNAME
+          value: {{ .Values.maven.external_repo.username }}
+        - name: EXTERNAL_MAVEN_REPO_PASSWORD
+          value: {{ .Values.maven.external_repo.password }}
+        - name: HTTPS_KEYSTORE_DIR
+          value: /etc/kieserver-secret-volume
+        - name: HTTPS_KEYSTORE
+          value: {{ .Values.kie_server.https_keystore }}
+        - name: HTTPS_NAME
+          value: {{ .Values.kie_server.certificate_name }}
+        - name: HTTPS_PASSWORD
+          value: {{ .Values.kie_server.https_keystore_password }}
+        - name: KUBERNETES_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        {{- if .Values.sso}}
+        - name: SSO_URL
+          value: {{ .Values.sso.url }}
+        - name: SSO_OPENIDCONNECT_DEPLOYMENTS
+          value: ROOT.war
+        - name: SSO_REALM
+          value: {{ .Values.sso.realm }}
+        - name: SSO_SECRET
+          value: {{ .Values.kie_server.sso.secret }}
+        - name: SSO_CLIENT
+          value: {{ .Values.kie_server.sso.client }}
+        {{- if .Values.sso.username}}
+        - name: SSO_USERNAME
+          value: {{ .Values.sso.username }}
+        {{- end }}
+        {{- if .Values.sso.password}}
+        - name: SSO_PASSWORD
+          value: {{ .Values.sso.password }}
+        {{- end }}
+        - name: SSO_DISABLE_SSL_CERTIFICATE_VALIDATION
+          value: {{ .Values.sso.disable_ssl_certificate_validation | quote }}
+        - name: SSO_PRINCIPAL_ATTRIBUTE
+          value: {{ .Values.sso.principal_attribute }}
+        {{- end }}
+        - name: HOSTNAME_HTTP
+          value: {{ .Values.kie_server.hostname_http }}
+        - name: HOSTNAME_HTTPS
+          value: {{ .Values.kie_server.hostname_https }}
+        image: {{ .Values.kie_server.image_stream_name }}
+        imagePullPolicy: Always
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - /bin/sh
+              - /opt/eap/bin/launch/jboss-kie-kieserver-hooks.sh
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - /opt/eap/bin/launch/jboss-kie-kieserver-hooks.sh
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /services/rest/server/healthcheck
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 180
+          periodSeconds: 15
+          timeoutSeconds: 2
+        name: {{ .Values.application_name }}-kieserver
+        ports:
+        - containerPort: 8778
+          name: jolokia
+          protocol: TCP
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 36
+          httpGet:
+            path: /services/rest/server/readycheck
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 2
+        resources:
+          limits:
+            cpu: {{ .Values.kie_server.cpu_limit }}
+            memory: {{ .Values.kie_server.memory_limit }}
+          requests:
+            cpu: {{ .Values.kie_server.cpu_request }}
+            memory: {{ .Values.kie_server.memory_request }}
+        volumeMounts:
+        - mountPath: /etc/kieserver-secret-volume
+          name: kieserver-keystore-volume
+          readOnly: true
+        - mountPath: /opt/kie/data
+          name: {{ .Values.application_name }}-kie-pvol
+      serviceAccountName: {{ .Values.application_name }}-rhpamsvc
+      terminationGracePeriodSeconds: 90
+      volumes:
+      - name: kieserver-keystore-volume
+        secret:
+          secretName: {{ .Values.kie_server.https_secret }}
+      - name: {{ .Values.application_name }}-kie-pvol
+        persistentVolumeClaim:
+          claimName: {{ .Values.application_name }}-kie-claim
+  triggers:
+  - imageChangeParams:
+      automatic: true
+      containerNames:
+      - {{ .Values.application_name }}-kieserver
+      from:
+        kind: ImageStreamTag
+        name: {{ .Values.kie_server.image_stream.name }}:{{ .Values.rhpam.image_stream.tag }}
+        namespace: {{ .Values.kie_server.image_stream.namespace }}
+    type: ImageChange
+  - type: ConfigChange
+{{- end }}
+{{- end }}

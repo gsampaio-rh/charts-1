@@ -1,0 +1,19 @@
+{{- if .Values.enabled }}
+{{- if .Values.postgresql }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    description: The database server's port.
+  labels:
+    application: {{ .Values.application_name }}
+  name: {{ .Values.application_name }}-postgresql
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    deploymentConfig: {{ .Values.application_name }}-postgresql
+{{- end }}
+{{- end }}

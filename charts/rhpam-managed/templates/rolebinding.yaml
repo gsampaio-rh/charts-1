@@ -1,0 +1,17 @@
+{{- if .Values.enabled }}
+{{- if .Values.rhpam }}
+---
+apiVersion: v1
+kind: RoleBinding
+metadata:
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote }}
+  name: {{ .Values.application_name }}-rhpamsvc-edit
+roleRef:
+  name: edit
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.application_name }}-rhpamsvc
+{{- end }}
+{{- end }}

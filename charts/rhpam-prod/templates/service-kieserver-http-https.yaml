@@ -1,0 +1,29 @@
+{{- if .Values.enabled }}
+{{- if .Values.kie_server }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    description: All the KIE server web server's ports. (First KIE server)
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote }}
+    service: {{ .Values.application_name }}-kieserver
+  name: {{ .Values.application_name }}-kieserver
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+  - name: https
+    port: 8443
+    targetPort: 8443
+  selector:
+    deploymentConfig: {{ .Values.application_name }}-kieserver
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600
+{{- end }}
+{{- end }}

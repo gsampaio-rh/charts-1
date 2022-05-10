@@ -1,0 +1,148 @@
+{{- if .Values.enabled }}
+{{- if .Values.rhsso }}
+---
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  labels:
+    app.kubernetes.io/part-of: {{ .Values.application_name }}
+    application: {{ .Values.application_name }}
+  name: {{ .Values.application_name }}
+spec:
+  replicas: {{ .Values.rhsso.replicas }}
+  selector:
+    deploymentConfig: {{ .Values.application_name }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        application: {{ .Values.application_name }}
+        deploymentConfig: {{ .Values.application_name }}
+      name: {{ .Values.application_name }}
+    spec:
+      containers:
+        - readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - '-c'
+                - /opt/eap/bin/readinessProbe.sh
+          name: {{ .Values.application_name }}
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - '-c'
+                - /opt/eap/bin/livenessProbe.sh
+            initialDelaySeconds: 60
+          env:
+          #TODO EMPTY VARIABLE ??????
+            - name: SSO_HOSTNAME
+            - name: DB_SERVICE_PREFIX_MAPPING
+              value: {{ .Values.application_name }}-postgresql=DB
+            - name: DB_JNDI
+              value: {{ .Values.postgresql.jndi | quote }}
+            - name: DB_USERNAME
+              value: {{ .Values.postgresql.user | quote }}
+            - name: DB_PASSWORD
+              value: {{ .Values.postgresql.pass | quote }}
+            - name: DB_DATABASE
+              value: {{ .Values.postgresql.name | quote }}
+            - name: TX_DATABASE_PREFIX_MAPPING
+              value: {{ .Values.application_name }}-postgresql=DB
+            {{- if .Values.postgresql.poolSize }}
+            - name: DB_MIN_POOL_SIZE
+              value: {{ .Values.postgresql.poolSize.min | quote }}
+            - name: DB_MAX_POOL_SIZE
+              value: {{ .Values.postgresql.poolSize.max | quote }}
+            {{- end }}
+            - name: DB_TX_ISOLATION
+              value: {{ .Values.postgresql.txIsolation | quote }}
+            - name: JGROUPS_PING_PROTOCOL
+              value: openshift.DNS_PING
+            - name: OPENSHIFT_DNS_PING_SERVICE_NAME
+              value: {{ .Values.application_name }}-ping
+            - name: OPENSHIFT_DNS_PING_SERVICE_PORT
+              value: '8888'
+            - name: X509_CA_BUNDLE
+              value: >-
+                /var/run/configmaps/service-ca/service-ca.crt
+                /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            - name: JGROUPS_CLUSTER_PASSWORD
+              value: {{ .Values.rhsso.jgroupClusterPassword | quote }}
+            - name: SSO_ADMIN_USERNAME
+              value: {{ .Values.rhsso.admin.user | quote }}
+            - name: SSO_ADMIN_PASSWORD
+              value: {{ .Values.rhsso.admin.pass | quote }}
+            - name: SSO_SERVICE_USERNAME
+              value: {{ .Values.rhsso.service.user | quote }}
+            - name: SSO_SERVICE_PASSWORD
+              value: {{ .Values.rhsso.service.pass | quote }}
+            {{- if .Values.rhsso.realm }}
+            - name: SSO_REALM
+              value: {{ .Values.rhsso.realm | quote }}
+            {{- end }}
+            {{- if .Values.rhsso.import }}
+            - name: SSO_IMPORT_FILE
+              value: /var/run/secrets/{{ .Values.rhsso.import.secret }}/{{ .Values.rhsso.import.filename }}.json
+            {{- end }}
+          ports:
+            - containerPort: 8778
+              name: jolokia
+              protocol: TCP
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+            - containerPort: 8443
+              name: https
+              protocol: TCP
+            - containerPort: 8888
+              name: ping
+              protocol: TCP
+          imagePullPolicy: Always
+          volumeMounts:
+            - mountPath: /etc/x509/https
+              name: sso-x509-https-volume
+              readOnly: true
+            - mountPath: /etc/x509/jgroups
+              name: sso-x509-jgroups-volume
+              readOnly: true
+            - mountPath: /var/run/configmaps/service-ca
+              name: service-ca
+              readOnly: true
+            {{- if .Values.rhsso.import }}
+            - mountPath: /var/run/secrets/{{ .Values.rhsso.import.secret }}
+              name: sso-realm-import-config
+              readOnly: true
+            {{- end }}
+          image: ''
+      terminationGracePeriodSeconds: 75
+      volumes:
+        - name: sso-x509-https-volume
+          secret:
+            secretName: sso-x509-https-secret
+        {{- if .Values.rhsso.import }}
+        - name: sso-realm-import-config
+          secret:
+            secretName: {{ .Values.rhsso.import.secret }}
+        {{- end }}
+        - name: sso-x509-jgroups-volume
+          secret:
+            secretName: sso-x509-jgroups-secret
+        - configMap:
+            name: {{ .Values.application_name }}-service-ca
+          name: service-ca
+  triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - {{ .Values.application_name }}
+        from:
+          kind: ImageStreamTag
+          name: {{ .Values.rhsso.imagestream.name }}:{{ .Values.rhsso.imagestream.tag | default "latest" }}
+          namespace: {{ .Values.rhsso.imagestream.namespace }}
+      type: ImageChange
+    - type: ConfigChange
+{{- end }}
+{{- end }}

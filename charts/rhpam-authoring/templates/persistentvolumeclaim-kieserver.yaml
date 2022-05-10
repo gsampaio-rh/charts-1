@@ -1,0 +1,19 @@
+{{- if .Values.enabled }}
+{{- if .Values.kie_server }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    application: {{ .Values.application_name }}
+    rhpam: {{ .Values.rhpam.version | quote }}
+    service: {{ .Values.application_name }}-kieserver
+  name: {{ .Values.application_name }}-kie-claim
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.kie_server.resources.storage_request }}
+{{- end }}
+{{- end }}
